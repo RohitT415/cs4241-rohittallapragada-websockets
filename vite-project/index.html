@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #controls {
+      margin: 10px;
+    }
+
+    canvas {
+      border: 1px solid white;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="controls">
+    <input type="color" id="colorPicker" value="#ff0000">
+    <input type="range" id="brushSize" min="1" max="50" value="25">
+  </div>
+  <canvas></canvas>
+
+  <script>
+    let ws, ctx;
+    let currentColor = '#ff0000'; 
+    let brushSize = 25;  
+
+    window.onload = function () {
+      ws = new WebSocket('ws://127.0.0.1:3000');
+      const canvas = document.querySelector('canvas');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight - 50; // Adjust height to make space for controls
+      ctx = canvas.getContext('2d');
+
+      ws.onopen = () => {
+        ws.onmessage = async msg => {
+          const data = await msg.data.text();
+          const [x, y, color, size] = data.split(':').map((v, i) => i < 2 ? parseInt(v) : v);
+
+          drawCircle(x, y, color, size);
+        }
+      };
+
+      canvas.onmousemove = e => {
+        if (e.buttons === 1) {  // Painting happens only when the mouse is clicked and moved
+          const x = e.pageX;
+          const y = e.pageY - canvas.offsetTop;  // Workaround to get the correct y position
+          ws.send(`${x}:${y}:${currentColor}:${brushSize}`);
+          drawCircle(x, y, currentColor, brushSize);
+        }
+      };
+
+      document.getElementById('colorPicker').addEventListener('input', function () {
+        currentColor = this.value;
+      });
+
+      document.getElementById('brushSize').addEventListener('input', function () {
+        brushSize = this.value;
+      });
+    }
+
+    function drawCircle(x, y, color, size) {
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, 2 * Math.PI);
+      ctx.fillStyle = color;
+      ctx.fill();
+    }
+  </script>
+</body>
+
+</html>
